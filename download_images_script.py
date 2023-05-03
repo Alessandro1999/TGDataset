@@ -55,6 +55,24 @@ def get_media_ids(channels: List[int]) -> Dict[Tuple[str, str], List[int]]:
     return media_ids
 
 
+def get_media_ids_csv(channels: List[int]) -> pd.DataFrame:
+    try:
+        return pd.read_csv('channels_media.csv')
+    except:
+        with open('channels_media.csv', 'w+') as out:
+            out.write(','.join(['ch_id', 'ch_name', 'media_id']) + '\n')
+            # for each telegram channel
+            for id in tqdm(channel_ids):
+                channel: Dict = utils.get_channel_by_id(id)
+                channel_name: str = channel['username']
+                media_dict = channel['generic_media']
+                for media in media_dict:
+                    if media_dict[media]['extension'] in image_extensions and media_dict[media]['media_id'] is not None:
+                        out.write(
+                            ','.join([str(id), str(channel_name), str(int(media))]) + '\n')
+        return pd.read_csv('channels_media.csv')
+
+
 def hamming_distance(hash1: str, hash2: str) -> int:
     '''
     Given two hash hash1 and hash2, it computes the hamming distance between them
@@ -91,9 +109,13 @@ channel2hash: Dict[Tuple[str, int], str] = dict()
 channel2NoneImages: Dict[str, Tuple[int, int]] = dict()
 
 
-async def download_images(media_ids: Dict[Tuple[str, str], List[int]], folder: str = "images/") -> pd.DataFrame:
-    for channel_id, channel_name in tqdm(media_ids.keys()):
-        images_id = media_ids[(channel_id, channel_name)]
+async def download_images(media_ids: pd.DataFrame, folder: str = "images/") -> pd.DataFrame:
+    channel_ids = set(media_ids['ch_id'])
+    for channel_id in tqdm(channel_ids):
+        channel_name = media_ids[media_ids['ch_id']
+                                 == channel_id]['ch_name'].iloc[0]
+        images_id = list(
+            media_ids[media_ids['ch_id'] == channel_id]['media_id'])
         channel2NoneImages[channel_id] = (0, len(images_id))
         images = client.iter_messages(
             channel_name, filter=InputMessagesFilterPhotos, limit=len(images_id), ids=images_id)
@@ -185,8 +207,9 @@ def build_dfs() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return df_channels, df_images
 
 
-media_ids = get_media_ids(channel_ids)
-# TOKEN = "6024785388:AAEUnoCjCS_rE6inRrpUp1Xw_HqQ2I9Aoa8"
+media_ids = get_media_ids_csv(channel_ids)
+
+# TOKEN = "YOUR_TOKEN"
 api_id = "21418053"
 api_hash = "8816a0370ace42cf311ebb554450c30c"
 client = TelegramClient('session_name', api_id, api_hash).start()
