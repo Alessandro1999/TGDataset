@@ -366,3 +366,6 @@ pip-selfcheck.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/osx,linux,visualstudiocode,pycharm,python,virtualenv
+images/*
+!images/.keep
+session_name.session
