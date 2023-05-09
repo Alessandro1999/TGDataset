@@ -112,7 +112,7 @@ channel2NoneImages: Dict[str, Tuple[int, int]] = dict()
 
 async def download_images(media_ids: pd.DataFrame, folder: str = "images/") -> pd.DataFrame:
     # exclude already downloaded images
-    if "downloaded" not in media_ids.columns():
+    if "downloaded" not in media_ids.columns:
         media_ids['downloaded'] = 'no'
     media_ids = media_ids[media_ids['downloaded'] == 'no']
     channel_ids = set(media_ids['ch_id'])
