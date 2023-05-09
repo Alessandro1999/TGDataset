@@ -60,7 +60,8 @@ def get_media_ids_csv(channels: List[int]) -> pd.DataFrame:
         return pd.read_csv('channels_media.csv')
     except:
         with open('channels_media.csv', 'w+') as out:
-            out.write(','.join(['ch_id', 'ch_name', 'media_id']) + '\n')
+            out.write(
+                ','.join(['ch_id', 'ch_name', 'media_id', 'downloaded']) + '\n')
             # for each telegram channel
             for id in tqdm(channels):
                 channel: Dict = dbu.get_channel_by_id(id)
@@ -69,7 +70,7 @@ def get_media_ids_csv(channels: List[int]) -> pd.DataFrame:
                 for media in media_dict:
                     if media_dict[media]['extension'] in image_extensions and media_dict[media]['media_id'] is not None:
                         out.write(
-                            ','.join([str(id), str(channel_name), str(int(media))]) + '\n')
+                            ','.join([str(id), str(channel_name), str(int(media)), 'no']) + '\n')
         return pd.read_csv('channels_media.csv')
 
 
@@ -110,6 +111,10 @@ channel2NoneImages: Dict[str, Tuple[int, int]] = dict()
 
 
 async def download_images(media_ids: pd.DataFrame, folder: str = "images/") -> pd.DataFrame:
+    # exclude already downloaded images
+    if "downloaded" not in media_ids.columns():
+        media_ids['downloaded'] = 'no'
+    media_ids = media_ids[media_ids['downloaded'] == 'no']
     channel_ids = set(media_ids['ch_id'])
     for channel_id in tqdm(channel_ids):
         channel_name = media_ids[media_ids['ch_id']
@@ -129,11 +134,17 @@ async def download_images(media_ids: pd.DataFrame, folder: str = "images/") -> p
                         hash = imagehash.average_hash(pil_image)
                         # get the extension of the image
                         extension: str = os.path.splitext(path)[1]
-                        # call the file channelName_mediaId
-                        new_path = str(Path(folder).joinpath(
+                        # create a new directory with the channel name
+                        if not os.path.exists(folder+channel_name):
+                            os.mkdir(folder+channel_name)
+                        # call the file channelName_mediaId and move it to the new directory
+                        new_path = str(Path(folder+channel_name).joinpath(
                             channel_name+"_"+str(images_id[i]))) + extension
                         os.rename(path, new_path)
                         path = new_path
+                        # update the dataframe
+                        media_ids.loc[(media_ids['ch_id'] == channel_id) & (
+                            media_ids['media_id'] == images_id[i]), 'downloaded'] = 'yes'
                         i += 1
                         if len(hash2image) > 0:
                             most_similar = min(
@@ -170,10 +181,15 @@ async def download_images(media_ids: pd.DataFrame, folder: str = "images/") -> p
                 else:
                     n, tot = channel2NoneImages[channel_id]
                     channel2NoneImages[channel_id] = (n+1, tot)
+            # save the updated dataframe TODO is it too slow?
+            media_ids.to_csv('channels_media.csv', index=False)
         # (UsernameInvalidError, UsernameNotOccupiedError) as e:
         except Exception as e:
-            print(e)
+            media_ids.loc[(media_ids['ch_id'] == channel_id) & (
+                media_ids['media_id'] == images_id[i]), 'downloaded'] = 'error'
+            media_ids.to_csv('channels_media.csv', index=False)
             continue
+    return media_ids
 
 
 def build_dfs() -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -215,7 +231,7 @@ api_hash = "8816a0370ace42cf311ebb554450c30c"
 client = TelegramClient('session_name', api_id, api_hash).start()
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(download_images(media_ids))
+media_ids = loop.run_until_complete(download_images(media_ids))
 
 df_channels, df_images = build_dfs()
 # save the dataframes to csv
