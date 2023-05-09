@@ -19,12 +19,12 @@ from telethon.errors.rpcerrorlist import UsernameInvalidError, UsernameNotOccupi
 import imagehash
 import torchvision
 
-import db_utilities as utils
+import db_utilities as dbu
 
 to_tensor = torchvision.transforms.ToTensor()
 
 
-channel_ids: List[int] = utils.get_channel_ids()
+channel_ids: List[int] = dbu.get_channel_ids()
 
 # extension of the images to download
 image_extensions = {'.png', '.jpg', '.jpeg', '.gif'}
@@ -39,8 +39,8 @@ def get_media_ids(channels: List[int]) -> Dict[Tuple[str, str], List[int]]:
     media_ids: Dict[Tuple[str, str], List[int]] = dict()
 
     # for each telegram channel
-    for id in tqdm(channel_ids):
-        channel: Dict = utils.get_channel_by_id(id)
+    for id in tqdm(channel):
+        channel: Dict = dbu.get_channel_by_id(id)
         channel_name: str = channel['username']
         media_dict = channel['generic_media']
         # for each media in the channel
@@ -62,8 +62,8 @@ def get_media_ids_csv(channels: List[int]) -> pd.DataFrame:
         with open('channels_media.csv', 'w+') as out:
             out.write(','.join(['ch_id', 'ch_name', 'media_id']) + '\n')
             # for each telegram channel
-            for id in tqdm(channel_ids):
-                channel: Dict = utils.get_channel_by_id(id)
+            for id in tqdm(channels):
+                channel: Dict = dbu.get_channel_by_id(id)
                 channel_name: str = channel['username']
                 media_dict = channel['generic_media']
                 for media in media_dict:
@@ -207,7 +207,7 @@ def build_dfs() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return df_channels, df_images
 
 
-media_ids = get_media_ids_csv(channel_ids)
+media_ids = get_media_ids_csv(channels=channel_ids)
 
 # TOKEN = "YOUR_TOKEN"
 api_id = "21418053"
